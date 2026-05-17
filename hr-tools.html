@@ -200,7 +200,8 @@ async function api(action, data) {
     if (employeesCache.length === 0) { el.textContent = 'ยังไม่มีพนักงาน'; return; }
     el.className = '';
     el.innerHTML = '';
-    employeesCache.forEach(function(emp) {
+    // ❌ กรองตัวเองออก
+employeesCache.filter(function(e) { return e.employee_id !== emp.employee_id; })
       const item = document.createElement('div');
       item.className = 'emp-item';
       item.innerHTML =
