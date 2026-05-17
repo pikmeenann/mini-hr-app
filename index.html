@@ -205,11 +205,11 @@
     };
 
     try {
-      const res = await fetch(APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify(payload)
-      });
+const res = await fetch(APPS_SCRIPT_URL, {
+  method: 'POST',
+  // ✅ ลบ headers ออกทั้งหมด — GAS ไม่รองรับ preflight CORS
+  body: JSON.stringify(payload)
+});
       const json = await res.json();
       if (json.ok) {
         showStatus('✅ ลงทะเบียนเรียบร้อย รหัส: ' + json.employeeId, 'success');
