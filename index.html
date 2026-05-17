@@ -179,52 +179,68 @@
     !(allFilled && selfieBase64 && idCardBase64 && userId); // ✅ เพิ่ม && userId
 }
 
-  document.getElementById('btnSubmit').onclick = async function() {
-    // ✅ แก้ไข: เช็ค userId ตรงนี้แทน
-    if (!userId) {
-      showStatus('❌ ยังโหลด LINE profile ไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่', 'error');
-      return;
-    }
+document.getElementById('btnSubmit').onclick = async function() {
+  if (!userId) {
+    showStatus('❌ ยังโหลด LINE profile ไม่เสร็จ', 'error');
+    return;
+  }
 
-    showStatus('กำลังส่ง...', 'loading');
-    document.getElementById('btnSubmit').disabled = true;
+  showStatus('กำลังส่ง...', 'loading');
+  document.getElementById('btnSubmit').disabled = true;
 
-    const payload = {
-      action: 'register',
-      lineUserId: userId,
-      displayName: document.getElementById('displayName').value.trim(),
-      phone: document.getElementById('phone').value.trim(),
-      email: document.getElementById('email').value.trim(),
-      department: document.getElementById('department').value.trim(),
-      position: document.getElementById('position').value.trim(),
-      bankName: document.getElementById('bankName').value,
-      bankAccountNo: document.getElementById('bankAccountNo').value.trim(),
-      bankAccountName: document.getElementById('bankAccountName').value.trim(),
-      selfieBase64: selfieBase64,
-      idCardBase64: idCardBase64
-    };
+  const payload = {
+    action: 'register',
+    lineUserId: userId,
+    displayName: document.getElementById('displayName').value.trim(),
+    phone: document.getElementById('phone').value.trim(),
+    email: document.getElementById('email').value.trim(),
+    department: document.getElementById('department').value.trim(),
+    position: document.getElementById('position').value.trim(),
+    bankName: document.getElementById('bankName').value,
+    bankAccountNo: document.getElementById('bankAccountNo').value.trim(),
+    bankAccountName: document.getElementById('bankAccountName').value.trim(),
+    selfieBase64: selfieBase64,
+    idCardBase64: idCardBase64
+  };
 
-    try {
-const res = await fetch(APPS_SCRIPT_URL, {
-  method: 'POST',
-  // ✅ ลบ headers ออกทั้งหมด — GAS ไม่รองรับ preflight CORS
-  body: JSON.stringify(payload)
-});
-      const json = await res.json();
-      if (json.ok) {
-        showStatus('✅ ลงทะเบียนเรียบร้อย รหัส: ' + json.employeeId, 'success');
-        setTimeout(function() { liff.closeWindow(); }, 2500);
-      } else if (json.error === 'already_registered') {
-        showStatus('⚠️ คุณลงทะเบียนแล้ว (' + json.employeeId + ')', 'error');
-      } else {
-        showStatus('❌ ' + (json.message || json.error), 'error');
-        document.getElementById('btnSubmit').disabled = false;
-      }
-    } catch (err) {
-      showStatus('❌ ' + err.message, 'error');
+  try {
+    showStatus('⏳ กำลัง fetch...', 'loading');
+
+    // ✅ เพิ่ม timeout 30 วินาที
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+    showStatus('⏳ fetch OK, กำลัง parse...', 'loading');
+
+    const text = await res.text(); // ✅ รับเป็น text ก่อน
+    showStatus('📨 response: ' + text.substring(0, 100), 'loading'); // แสดง 100 ตัวแรก
+
+    const json = JSON.parse(text);
+    if (json.ok) {
+      showStatus('✅ ลงทะเบียนเรียบร้อย รหัส: ' + json.employeeId, 'success');
+      setTimeout(function() { liff.closeWindow(); }, 2500);
+    } else if (json.error === 'already_registered') {
+      showStatus('⚠️ คุณลงทะเบียนแล้ว (' + json.employeeId + ')', 'error');
+    } else {
+      showStatus('❌ ' + (json.message || json.error), 'error');
       document.getElementById('btnSubmit').disabled = false;
     }
-  };
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      showStatus('❌ timeout — GAS ไม่ตอบใน 30 วินาที', 'error');
+    } else {
+      showStatus('❌ ' + err.name + ': ' + err.message, 'error');
+    }
+    document.getElementById('btnSubmit').disabled = false;
+  }
+};
 
   function showStatus(t, l) {
     const el = document.getElementById('status');
